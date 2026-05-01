@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация — HZ Мессенджер</title>
+    <link rel="stylesheet" href="{% static 'chat/index.css' %}">
+</head>
+<body class="auth-body">
+    <div class="auth-card">
+
+        <div class="auth-logo">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 2L11 13" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+
+        <h1>Создать аккаунт</h1>
+        <p class="subtitle">Зарегистрируйтесь бесплатно</p>
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Создать аккаунт</button>
+        </form>
+
+        <p><a href="{% url 'login' %}">← Уже есть аккаунт? Войти</a></p>
+    </div>
+</body>
+</html>
