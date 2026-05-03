@@ -160,3 +160,4 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def get_other_participant(self):
         return self.room.participants.exclude(id=self.user_id).first()
+        
