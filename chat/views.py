@@ -48,18 +48,32 @@ def start_dialog(request):
 
 @login_required
 def chat_page(request):
-    lobby = Room.get_or_create_lobby()
-    user_rooms = (
-        Room.objects.filter(Q(is_private=False) | Q(participants=request.user))
+    # Only private dialogs that the current user participates in
+    user_rooms = list(
+        Room.objects
+        .filter(is_private=True, participants=request.user)
         .distinct()
+        .prefetch_related('participants')
         .order_by('title')
     )
-    selected_slug = request.GET.get('room') or lobby.slug
-    selected_room = user_rooms.filter(slug=selected_slug).first() or lobby
+
+    # Annotate each room with the other participant's username as display_title
+    me = request.user
+    for room in user_rooms:
+        other = next(
+            (p for p in room.participants.all() if p.id != me.id),
+            None,
+        )
+        room.display_title = other.username if other else room.title
+        room.other_username = other.username if other else ''
+
+    selected_slug = request.GET.get('room')
+    selected_room = None
+    if selected_slug:
+        selected_room = next((r for r in user_rooms if r.slug == selected_slug), None)
 
     context = {
         'rooms': user_rooms,
         'selected_room': selected_room,
-        'dialog_form': StartDialogForm(),
     }
     return render(request, 'chat/index.html', context)
