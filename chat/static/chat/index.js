@@ -310,14 +310,14 @@ ctxMenu.addEventListener('click', e => {
 
   if (action === 'copy' && ctxTarget) {
     const text = ctxTarget.dataset.msgText;
-    navigator.clipboard.writeText(text).then(() => showToast('Скопировано')).catch(() => {
+    navigator.clipboard.writeText(text).then(() => showToast('Скопировано в буфер обмена')).catch(() => {
       const ta = document.createElement('textarea');
       ta.value = text;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand('copy');
       document.body.removeChild(ta);
-      showToast('Скопировано');
+      showToast('Скопировано в буфер обмена');
     });
   }
 

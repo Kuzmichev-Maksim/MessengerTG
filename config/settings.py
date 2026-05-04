@@ -12,7 +12,7 @@ SECRET_KEY = 'django-insecure-4nz8k!i)=w_$vl+7e3o@6cu#$t)54mfx_m0v)o52#-!v012-+*
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['messengertg.onrender.com', 'localhost', '127.0.0.1']
 
 INSTALLED_APPS = [
     'daphne',
