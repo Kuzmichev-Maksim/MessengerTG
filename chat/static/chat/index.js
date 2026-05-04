@@ -458,3 +458,34 @@ if (searchInput) {
     });
   });
 }
+
+/* ─── Мобильная навигация ─── */
+const sidebar   = document.getElementById('sidebar');
+const backBtn   = document.querySelector('.back-btn');
+const menuBtn   = document.querySelector('.sidebar-menu-btn');
+
+// Кнопка «назад» в хедере чата → показать список
+if (backBtn) {
+  backBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (window.innerWidth <= 700 && sidebar) {
+      sidebar.classList.add('open');
+    }
+  });
+}
+
+// Кнопка-гамбургер → показать/скрыть список
+if (menuBtn) {
+  menuBtn.addEventListener('click', () => {
+    if (sidebar) sidebar.classList.toggle('open');
+  });
+}
+
+// Клик по комнате на мобильном → скрыть сайдбар
+document.querySelectorAll('.room-item').forEach(item => {
+  item.addEventListener('click', () => {
+    if (window.innerWidth <= 700 && sidebar) {
+      sidebar.classList.remove('open');
+    }
+  });
+});
