@@ -3,7 +3,6 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Telegram-accurate palette */
   --blue:          #3390ec;
   --blue-dark:     #2b7fd4;
   --blue-light:    #e8f4fd;
@@ -24,7 +23,6 @@
   --shadow-md:     0 2px 8px rgba(0,0,0,.12);
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-  /* Avatar palette (7 colors like Telegram) */
   --av1: linear-gradient(135deg, #f5a623 0%, #f76b1c 100%);
   --av2: linear-gradient(135deg, #43b89c 0%, #3d8eb9 100%);
   --av3: linear-gradient(135deg, #e8637f 0%, #c0392b 100%);
@@ -67,7 +65,6 @@ body {
   z-index: 10;
 }
 
-/* ── Sidebar Header ── */
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -110,7 +107,6 @@ body {
 .sidebar-search-wrap input:focus { background: #ebebeb; }
 .sidebar-search-wrap input::placeholder { color: var(--text-3); }
 
-/* ── Room List ── */
 .rooms {
   overflow-y: auto;
   flex: 1;
@@ -149,7 +145,6 @@ body {
 .room-item.active .room-time    { color: rgba(255,255,255,.72); }
 .room-item.active .preview-placeholder { color: rgba(255,255,255,.6); }
 
-/* Avatar */
 .room-avatar {
   width: 54px; height: 54px;
   border-radius: 50%;
@@ -169,7 +164,6 @@ body {
 
 .room-item.active .room-avatar { background: rgba(255,255,255,.22) !important; }
 
-/* Room body */
 .room-body {
   flex: 1; min-width: 0;
   display: flex; flex-direction: column;
@@ -200,7 +194,6 @@ body {
 }
 .preview-placeholder { font-style: italic; }
 
-/* ── Sidebar Compose (new dialog) ── */
 .sidebar-compose {
   padding: 10px 10px 12px;
   border-top: 1px solid var(--border);
@@ -248,12 +241,10 @@ body {
   min-width: 0; height: 100vh;
   background: var(--chat-bg);
   position: relative;
-  /* Subtle Telegram-style dot pattern */
   background-image: radial-gradient(circle, rgba(255,255,255,.25) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
-/* ── Back button (mobile) ── */
 .back-btn {
   display: none;
   width: 40px; height: 40px;
@@ -263,7 +254,6 @@ body {
 }
 .back-btn svg { width: 22px; height: 22px; }
 
-/* ── Chat Header ── */
 .chat-header {
   background: var(--header-bg);
   border-bottom: 1px solid var(--border);
@@ -309,7 +299,6 @@ body {
 }
 .header-icon-btn:hover { background: var(--hover-bg); }
 .header-icon-btn svg { width: 20px; height: 20px; }
-.header-more-btn svg { width: 5px; height: 20px; }
 
 .logout-form { flex-shrink: 0; margin-left: 4px; }
 .logout-btn {
@@ -322,7 +311,6 @@ body {
 }
 .logout-btn:hover { background: var(--hover-bg); border-color: #bbb; }
 
-/* ── Flash Messages ── */
 .flash-messages {
   padding: 0; flex-shrink: 0; z-index: 5;
 }
@@ -337,7 +325,6 @@ body {
   background: #fef2f2; border-color: #fecaca; color: #b91c1c;
 }
 
-/* ── Messages Area ── */
 .messages {
   flex: 1; overflow-y: auto;
   overscroll-behavior: contain;
@@ -355,7 +342,6 @@ body {
   justify-content: flex-end;
 }
 
-/* Day badge */
 .day-badge {
   align-self: center;
   background: rgba(0,0,0,.22);
@@ -382,12 +368,9 @@ body {
   to   { opacity: 1; transform: none; }
 }
 .msg-row.out { flex-direction: row-reverse; }
-
-/* Group consecutive messages */
 .msg-row.in  + .msg-row.in  { padding-top: 1px; }
 .msg-row.out + .msg-row.out { padding-top: 1px; }
 
-/* ── Bubble Wrap ── */
 .bubble-wrap {
   display: flex; flex-direction: column;
   max-width: min(420px, 72vw);
@@ -395,7 +378,6 @@ body {
 .msg-row.out .bubble-wrap { align-items: flex-end; }
 .msg-row.in  .bubble-wrap { align-items: flex-start; }
 
-/* ── Bubble ── */
 .bubble {
   padding: 8px 12px 6px;
   border-radius: 18px;
@@ -404,6 +386,8 @@ body {
   position: relative; max-width: 100%;
   box-shadow: var(--shadow-sm);
   overflow: visible;
+  cursor: default;
+  user-select: text;
 }
 
 .msg-row.in .bubble {
@@ -417,7 +401,6 @@ body {
   color: #111;
 }
 
-/* Telegram message tails */
 .msg-row.in .bubble::before {
   content: '';
   position: absolute;
@@ -437,10 +420,6 @@ body {
   border-color: transparent var(--bubble-out) transparent transparent;
 }
 
-/* Group bubbles: hide tail for non-last messages */
-.msg-row.in:not(:last-of-type-in) .bubble::before  { display: none; }
-
-/* Sender name */
 .bubble-sender {
   display: block;
   font-size: 13px; font-weight: 600;
@@ -448,7 +427,6 @@ body {
   line-height: 1.2;
 }
 
-/* Time + tick */
 .bubble-meta {
   float: right;
   display: flex; align-items: center; gap: 3px;
@@ -459,11 +437,191 @@ body {
   font-size: 11.5px;
   color: var(--text-3);
 }
-.msg-row.out .bubble-time { color: #4bae48; }
+.msg-row.out .bubble-time { color: var(--text-3); }
 
-.bubble-tick svg { width: 16px; height: 10px; display: block; }
+.bubble-tick { display: flex; align-items: center; }
+.bubble-tick svg { width: 14px; height: 10px; display: block; }
+/* sent state — single gray */
+.tick-sent svg path  { stroke: #a0acb5; }
+/* read state — double blue */
+.tick-read svg path  { stroke: #3390ec; }
 
-/* ── Compose Bar ── */
+/* ══════════════════════════════════════════
+   REPLY QUOTE inside bubble
+══════════════════════════════════════════ */
+.reply-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 8px 5px 10px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  border-left: 3px solid var(--blue);
+  background: rgba(51,144,236,.1);
+  cursor: pointer;
+  overflow: hidden;
+  max-width: 100%;
+  transition: background .15s;
+}
+.reply-quote:hover {
+  background: rgba(51,144,236,.17);
+}
+.msg-row.out .reply-quote {
+  border-left-color: #4bae48;
+  background: rgba(75,174,72,.12);
+}
+.msg-row.out .reply-quote:hover {
+  background: rgba(75,174,72,.2);
+}
+.reply-quote-author {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--blue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.msg-row.out .reply-quote-author {
+  color: #4bae48;
+}
+.reply-quote-text {
+  font-size: 13px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ══════════════════════════════════════════
+   REPLY BAR (above compose)
+══════════════════════════════════════════ */
+.reply-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px 6px 14px;
+  background: var(--header-bg);
+  border-top: 1px solid var(--border);
+  gap: 10px;
+  flex-shrink: 0;
+  animation: reply-bar-in .15s ease;
+}
+@keyframes reply-bar-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.reply-bar-icon {
+  color: var(--blue);
+  flex-shrink: 0;
+  display: flex; align-items: center;
+}
+.reply-bar-icon svg {
+  width: 20px; height: 20px;
+}
+
+.reply-bar-body {
+  flex: 1;
+  min-width: 0;
+  border-left: 3px solid var(--blue);
+  padding-left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.reply-bar-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reply-bar-text {
+  font-size: 13px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reply-bar-cancel {
+  width: 32px; height: 32px;
+  border: none; background: none;
+  border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-3);
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+  font-size: 18px;
+}
+.reply-bar-cancel:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+.reply-bar-cancel svg {
+  width: 18px; height: 18px;
+}
+
+/* ══════════════════════════════════════════
+   CONTEXT MENU
+══════════════════════════════════════════ */
+.ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.12);
+  padding: 6px 0;
+  min-width: 190px;
+  animation: ctx-in .12s ease;
+  user-select: none;
+  outline: none;
+}
+@keyframes ctx-in {
+  from { opacity: 0; transform: scale(.93); }
+  to   { opacity: 1; transform: none; }
+}
+
+.ctx-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  font-size: 14.5px;
+  font-family: var(--font);
+  color: var(--text);
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background .1s;
+  border-radius: 0;
+}
+.ctx-menu-item:hover {
+  background: var(--hover-bg);
+}
+.ctx-menu-item svg {
+  width: 18px; height: 18px;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.ctx-menu-item.danger {
+  color: #e53935;
+}
+.ctx-menu-item.danger svg {
+  color: #e53935;
+}
+
+.ctx-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ══════════════════════════════════════════
+   COMPOSE BAR
+══════════════════════════════════════════ */
 .compose-bar {
   padding: 8px 10px;
   display: flex; align-items: center; gap: 6px;
@@ -516,7 +674,7 @@ body {
 #send svg    { width: 20px; height: 20px; margin-left: 2px; }
 
 /* ══════════════════════════════════════════
-   EMPTY STATE (no room selected)
+   EMPTY STATE
 ══════════════════════════════════════════ */
 .empty-state {
   flex: 1; display: flex; flex-direction: column;
@@ -627,7 +785,50 @@ body {
 .auth-card ul + p { margin-top: 0; }
 
 /* ══════════════════════════════════════════
-   RESPONSIVE — hide sidebar on narrow viewports
+   TOAST NOTIFICATION
+══════════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(33, 33, 33, 0.92);
+  color: #fff;
+  font-size: 14px;
+  font-family: var(--font);
+  font-weight: 500;
+  padding: 11px 18px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.3);
+  pointer-events: none;
+  z-index: 2000;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  animation: toast-in .2s cubic-bezier(.34,1.56,.64,1);
+}
+.toast.toast-hide {
+  animation: toast-out .2s ease forwards;
+}
+.toast svg {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  color: #fff;
+  opacity: .85;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px) scale(.92); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1); }
+}
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1); }
+  to   { opacity: 0; transform: translateX(-50%) translateY(8px)  scale(.95); }
+}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE
 ══════════════════════════════════════════ */
 @media (max-width: 700px) {
   .sidebar { width: 100%; position: absolute; z-index: 20; }

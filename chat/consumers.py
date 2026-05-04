@@ -6,8 +6,6 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from .models import Message, Room
 
 # ─── In-process online counter ───────────────────────────────────────────────
-# { user_id: number_of_open_connections }
-# Works correctly for InMemoryChannelLayer (single process).
 _online: dict[int, int] = {}
 
 
@@ -31,36 +29,33 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
         self.room_id = self.room.id
 
-        # Join the chat group and the personal status group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.channel_layer.group_add(f'user_status_{self.user_id}', self.channel_name)
         await self.accept()
 
-        # Mark this user as online (increment connection counter)
         _online[self.user_id] = _online.get(self.user_id, 0) + 1
 
-        # Private room: find the other participant
         if self.room.is_private:
             other = await self.get_other_participant()
             if other:
                 self.other_user_id = other.id
-
-                # Tell the other person that we just came online
                 await self.channel_layer.group_send(
                     f'user_status_{other.id}',
-                    {
-                        'type': 'status.update',
-                        'online': True,
-                    },
+                    {'type': 'status.update', 'online': True},
                 )
-
-                # Tell ourselves whether the other person is currently online
                 await self.send(text_data=json.dumps({
                     'type': 'status',
                     'online': _online.get(other.id, 0) > 0,
                 }))
 
-        # Send message history
+        # Mark unread messages (from others) as read; broadcast receipt if any
+        last_read_id = await self.mark_messages_read()
+        if last_read_id is not None:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {'type': 'read.receipt', 'last_read_id': last_read_id},
+            )
+
         history = await self.get_history()
         await self.send(text_data=json.dumps({'type': 'history', 'messages': history}))
 
@@ -72,7 +67,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 f'user_status_{self.user_id}', self.channel_name
             )
 
-        # Decrement connection counter; notify other side only when fully offline
         if self.user_id and self.user_id in _online:
             _online[self.user_id] -= 1
             if _online[self.user_id] <= 0:
@@ -80,41 +74,58 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if self.other_user_id:
                     await self.channel_layer.group_send(
                         f'user_status_{self.other_user_id}',
-                        {
-                            'type': 'status.update',
-                            'online': False,
-                        },
+                        {'type': 'status.update', 'online': False},
                     )
 
-    # ── receive (incoming message from browser) ───────────────────────────────
+    # ── receive ───────────────────────────────────────────────────────────────
     async def receive(self, text_data):
         payload = json.loads(text_data)
         message = (payload.get('message') or '').strip()
         if not message:
             return
 
-        saved = await self.save_message(self.user_id, message)
+        reply_to_id = payload.get('reply_to_id')
+        saved = await self.save_message(self.user_id, message, reply_to_id)
+
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'chat.message',
-                'username': saved['username'],
-                'message': saved['message'],
-                'created_at': saved['created_at'],
+                'author_id': self.user_id,
+                **saved,
             },
         )
 
     # ── channel-layer event handlers ─────────────────────────────────────────
     async def chat_message(self, event):
-        await self.send(text_data=json.dumps({
+        payload = {
             'type': 'message',
+            'id': event['id'],
             'username': event['username'],
             'message': event['message'],
             'created_at': event['created_at'],
+            'is_read': event.get('is_read', False),
+        }
+        if event.get('reply_to'):
+            payload['reply_to'] = event['reply_to']
+        await self.send(text_data=json.dumps(payload))
+
+        # If this user is the recipient (not the author), mark as read immediately
+        if event.get('author_id') and event['author_id'] != self.user_id:
+            await self.mark_single_message_read(event['id'])
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {'type': 'read.receipt', 'last_read_id': event['id']},
+            )
+
+    async def read_receipt(self, event):
+        """Forward read receipt to the browser."""
+        await self.send(text_data=json.dumps({
+            'type': 'read_receipt',
+            'last_read_id': event['last_read_id'],
         }))
 
     async def status_update(self, event):
-        """Push the other user's online/offline status to our browser."""
         await self.send(text_data=json.dumps({
             'type': 'status',
             'online': event['online'],
@@ -122,30 +133,79 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     # ── DB helpers ───────────────────────────────────────────────────────────
     @sync_to_async
-    def save_message(self, user_id, message):
-        obj = Message.objects.create(
-            room_id=self.room_id, author_id=user_id, text=message
+    def mark_messages_read(self):
+        """Mark all unread messages by others as read. Returns max id or None."""
+        ids = list(
+            Message.objects
+            .filter(room_id=self.room_id, is_read=False)
+            .exclude(author_id=self.user_id)
+            .values_list('id', flat=True)
         )
-        return {
-            'username': obj.author.username if obj.author else 'Неизвестный',
-            'message': obj.text,
-            'created_at': obj.created_at.isoformat(),
-        }
+        if not ids:
+            return None
+        Message.objects.filter(id__in=ids).update(is_read=True)
+        return max(ids)
+
+    @sync_to_async
+    def mark_single_message_read(self, message_id):
+        """Mark one message as read (only if we are not its author)."""
+        Message.objects.filter(
+            id=message_id, is_read=False
+        ).exclude(author_id=self.user_id).update(is_read=True)
+
+    @sync_to_async
+    def save_message(self, user_id, message, reply_to_id=None):
+        valid_reply_id = None
+        if reply_to_id:
+            try:
+                Message.objects.get(id=reply_to_id, room_id=self.room_id)
+                valid_reply_id = reply_to_id
+            except Message.DoesNotExist:
+                pass
+
+        obj = Message.objects.create(
+            room_id=self.room_id,
+            author_id=user_id,
+            text=message,
+            reply_to_id=valid_reply_id,
+        )
+        obj = (
+            Message.objects
+            .select_related('author', 'reply_to', 'reply_to__author')
+            .get(pk=obj.pk)
+        )
+        return self._serialize(obj)
 
     @sync_to_async
     def get_history(self):
         latest = list(
-            Message.objects.filter(room_id=self.room_id).order_by('-created_at')[:50]
+            Message.objects
+            .filter(room_id=self.room_id)
+            .select_related('author', 'reply_to', 'reply_to__author')
+            .order_by('-created_at')[:50]
         )
         latest.reverse()
-        return [
-            {
-                'username': item.author.username if item.author else 'Неизвестный',
-                'message': item.text,
-                'created_at': item.created_at.isoformat(),
+        return [self._serialize(m) for m in latest]
+
+    def _serialize(self, obj):
+        data = {
+            'id': obj.id,
+            'username': obj.author.username if obj.author else 'Неизвестный',
+            'message': obj.text,
+            'created_at': obj.created_at.isoformat(),
+            'is_read': obj.is_read,
+        }
+        if obj.reply_to:
+            data['reply_to'] = {
+                'id': obj.reply_to.id,
+                'username': (
+                    obj.reply_to.author.username
+                    if obj.reply_to.author
+                    else 'Неизвестный'
+                ),
+                'message': obj.reply_to.text,
             }
-            for item in latest
-        ]
+        return data
 
     @sync_to_async
     def get_room_for_user(self, room_slug, user_id):
@@ -160,4 +220,3 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def get_other_participant(self):
         return self.room.participants.exclude(id=self.user_id).first()
-        
