@@ -77,6 +77,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         payload = json.loads(text_data)
 
+        # === EDIT MESSAGE ===
+        if payload.get('type') == 'edit':
+            message_id = payload.get('message_id')
+            new_text = (payload.get('message') or '').strip()
+            if not message_id or not new_text:
+                return
+            result = await self.edit_message(message_id, new_text)
+            if result:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'chat.edit',
+                        'message_id': result['message_id'],
+                        'message':    result['message'],
+                        'edited_at':  result['edited_at'],
+                    },
+                )
+            return
+    
         # === TYPING INDICATOR ===
         if payload.get('type') == 'typing':
             await self.channel_layer.group_send(
@@ -111,6 +130,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'typing',
             'username': event['username'],
+        }))
+
+    async def chat_edit(self, event):
+        await self.send(text_data=json.dumps({
+            'type':       'edit',
+            'message_id': event['message_id'],
+            'message':    event['message'],
+            'edited_at':  event['edited_at'],
         }))
 
     # ==================== OTHER HANDLERS ====================
@@ -199,17 +226,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     def _serialize(self, obj):
         data = {
-            'id': obj.id,
-            'username': obj.author.username if obj.author else 'Неизвестный',
-            'message': obj.text,
+            'id':         obj.id,
+            'username':   obj.author.username if obj.author else 'Неизвестный',
+            'message':    obj.text,
             'created_at': obj.created_at.isoformat(),
-            'is_read': obj.is_read,
+            'is_read':    obj.is_read,
+            'edited_at':  obj.edited_at.isoformat() if obj.edited_at else None,
         }
         if obj.reply_to:
             data['reply_to'] = {
-                'id': obj.reply_to.id,
+                'id':       obj.reply_to.id,
                 'username': obj.reply_to.author.username if obj.reply_to.author else 'Неизвестный',
-                'message': obj.reply_to.text,
+                'message':  obj.reply_to.text,
             }
         return data
 
@@ -226,3 +254,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def get_other_participant(self):
         return self.room.participants.exclude(id=self.user_id).first()
+    
+    @sync_to_async
+    def edit_message(self, message_id, new_text):
+        from django.utils import timezone
+        try:
+            msg = Message.objects.get(
+                id=message_id,
+                author_id=self.user_id,
+                room_id=self.room_id,
+            )
+            msg.text = new_text
+            msg.edited_at = timezone.now()
+            msg.save(update_fields=['text', 'edited_at'])
+            return {
+                'message_id': msg.id,
+                'message':    msg.text,
+                'edited_at':  msg.edited_at.isoformat(),
+            }
+        except Message.DoesNotExist:
+            return None

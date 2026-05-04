@@ -118,17 +118,18 @@ function appendMessage(data) {
   row.dataset.msgText     = data.message;
 
   row.innerHTML = `
-    <div class="bubble-wrap">
-      <div class="bubble">
-        ${!isMine ? `<span class="bubble-sender">${esc(data.username)}</span>` : ""}
-        ${buildReplyQuoteHTML(data.reply_to)}
-        ${esc(data.message)}
-        <div class="bubble-meta">
-          <span class="bubble-time">${esc(fmtTime(data.created_at))}</span>
-          ${isMine ? tickHTML(data.is_read) : ""}
-        </div>
+  <div class="bubble-wrap">
+    <div class="bubble">
+      ${!isMine ? `<span class="bubble-sender">${esc(data.username)}</span>` : ""}
+      ${buildReplyQuoteHTML(data.reply_to)}
+      <span class="bubble-text">${esc(data.message)}</span>
+      <div class="bubble-meta">
+        <span class="bubble-edited" style="${data.edited_at ? '' : 'display:none'}">изменено</span>
+        <span class="bubble-time">${esc(fmtTime(data.created_at))}</span>
+        ${isMine ? tickHTML(data.is_read) : ""}
       </div>
-    </div>`;
+    </div>
+  </div>`;
 
   const quote = row.querySelector('.reply-quote');
   if (quote) {
@@ -255,6 +256,33 @@ function hideReplyBar() {
 replyBarCancel.addEventListener('click', hideReplyBar);
 
 /* ══════════════════════════════════════════
+   EDIT MODE
+══════════════════════════════════════════ */
+const editBar       = document.getElementById('edit-bar');
+const editBarText   = document.getElementById('edit-bar-text');
+const editBarCancel = document.getElementById('edit-bar-cancel');
+let editingMsgId    = null;
+
+function enterEditMode(msgId, currentText) {
+  editingMsgId = msgId;
+  messageInput.value = currentText;
+  editBarText.textContent = currentText.length > 60 ? currentText.slice(0, 60) + '…' : currentText;
+  editBar.style.display = 'flex';
+  hideReplyBar();
+  messageInput.focus();
+  messageInput.setSelectionRange(currentText.length, currentText.length);
+}
+
+function exitEditMode() {
+  editingMsgId = null;
+  messageInput.value = '';
+  messageInput.style.height = 'auto';
+  editBar.style.display = 'none';
+}
+
+editBarCancel.addEventListener('click', exitEditMode);
+
+/* ══════════════════════════════════════════
    CONTEXT MENU (без изменений)
 ══════════════════════════════════════════ */
 const ctxMenu = document.getElementById("ctx-menu");
@@ -262,6 +290,12 @@ let ctxTarget = null;
 
 function showCtxMenu(x, y, msgRow) {
   ctxTarget = msgRow;
+  ctxTarget.classList.add('ctx-active');
+
+  const isMine = msgRow.classList.contains('out');
+  const editBtn = document.getElementById('ctx-edit-btn');
+  if (editBtn) editBtn.style.display = isMine ? 'flex' : 'none';
+
   ctxMenu.style.visibility = 'hidden';
   ctxMenu.style.display = 'block';
 
@@ -284,6 +318,7 @@ function showCtxMenu(x, y, msgRow) {
 
 function hideCtxMenu() {
   ctxMenu.style.display = 'none';
+  if (ctxTarget) ctxTarget.classList.remove('ctx-active');
   ctxTarget = null;
 }
 
@@ -306,6 +341,10 @@ ctxMenu.addEventListener('click', e => {
       username: ctxTarget.dataset.msgUsername,
       message:  ctxTarget.dataset.msgText,
     });
+  }
+
+  if (action === 'edit' && ctxTarget) {
+    enterEditMode(ctxTarget.dataset.msgId, ctxTarget.dataset.msgText);
   }
 
   if (action === 'copy' && ctxTarget) {
@@ -373,6 +412,18 @@ socket.onmessage = (event) => {
     return;
   }
 
+  if (payload.type === "edit") {
+    const row = innerEl.querySelector(`[data-msg-id="${payload.message_id}"]`);
+    if (row) {
+      const textEl = row.querySelector('.bubble-text');
+      if (textEl) textEl.textContent = payload.message;
+      row.dataset.msgText = payload.message;
+      const editedEl = row.querySelector('.bubble-edited');
+      if (editedEl) editedEl.style.display = '';
+    }
+    return;
+  }
+
   if (payload.type === "status") {
     setStatus(payload.online);
     return;
@@ -416,16 +467,21 @@ function sendMessage() {
   const text = messageInput.value.trim();
   if (!text || socket.readyState !== WebSocket.OPEN) return;
 
-  const payload = { message: text };
-  if (replyTo) {
-    payload.reply_to_id = parseInt(replyTo.id, 10);
+  if (editingMsgId) {
+    // Отправляем правку
+    socket.send(JSON.stringify({ type: 'edit', message_id: editingMsgId, message: text }));
+    exitEditMode();
+  } else {
+    // Обычное сообщение
+    const payload = { message: text };
+    if (replyTo) payload.reply_to_id = parseInt(replyTo.id, 10);
+    socket.send(JSON.stringify(payload));
+    hideReplyBar();
   }
 
-  socket.send(JSON.stringify(payload));
-  messageInput.value = "";
-  messageInput.style.height = "auto";
+  messageInput.value = '';
+  messageInput.style.height = 'auto';
   messageInput.focus();
-  hideReplyBar();
 }
 
 /* ─── Event listeners ─── */
@@ -435,7 +491,10 @@ messageInput.addEventListener("keydown", e => {
     e.preventDefault();
     sendMessage();
   }
-  if (e.key === "Escape") hideReplyBar();
+  if (e.key === "Escape") {
+    if (editingMsgId) exitEditMode();
+    else hideReplyBar();
+  }
 });
 
 /* Авто-рост поля ввода + отправка typing */

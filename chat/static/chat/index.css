@@ -828,6 +828,53 @@ body {
 }
 
 /* ══════════════════════════════════════════
+   EDIT BAR
+══════════════════════════════════════════ */
+.edit-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px 6px 14px;
+  background: var(--header-bg);
+  border-top: 1px solid var(--border);
+  gap: 10px;
+  flex-shrink: 0;
+  animation: reply-bar-in .15s ease;
+}
+.edit-bar-icon {
+  color: var(--blue);
+  flex-shrink: 0;
+  display: flex; align-items: center;
+}
+.edit-bar-icon svg { width: 20px; height: 20px; }
+.edit-bar-body {
+  flex: 1; min-width: 0;
+  border-left: 3px solid var(--blue);
+  padding-left: 10px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.edit-bar-label {
+  font-size: 13px; font-weight: 600;
+  color: var(--blue);
+}
+.edit-bar-text {
+  font-size: 13px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ══════════════════════════════════════════
+   BUBBLE EDITED LABEL
+══════════════════════════════════════════ */
+.bubble-edited {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-right: 2px;
+}
+.msg-row.out .bubble-edited { color: #5dae5a; }
+
+/* Подсветка при открытии меню */
+.msg-row.ctx-active .bubble { filter: brightness(.93); }
+
+/* ══════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════ */
 @media (max-width: 700px) {

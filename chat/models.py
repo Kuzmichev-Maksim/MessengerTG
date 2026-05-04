@@ -60,7 +60,7 @@ class Message(models.Model):
     )
     text = models.TextField(max_length=1000)
     reply_to = models.ForeignKey(
-        'self',
+        'self', 
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -68,6 +68,7 @@ class Message(models.Model):
     )
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    edited_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['created_at']
