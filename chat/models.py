@@ -76,3 +76,18 @@ class Message(models.Model):
     def __str__(self):
         author = self.author.username if self.author else 'Неизвестный'
         return f'[{self.room.slug}] {author}: {self.text[:30]}'
+    
+
+class Reaction(models.Model):
+    message = models.ForeignKey(
+        Message, on_delete=models.CASCADE, related_name='reactions'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='message_reactions',
+    )
+    emoji = models.CharField(max_length=8)
+
+    class Meta:
+        unique_together = ('message', 'user', 'emoji')

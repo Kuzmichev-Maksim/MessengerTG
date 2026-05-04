@@ -236,6 +236,18 @@
 
 <!-- ══ Context Menu (global, one instance) ══ -->
 <div id="ctx-menu" class="ctx-menu" style="display:none" tabindex="-1">
+  <!-- ── Reaction strip ── -->
+  <div class="ctx-reactions">
+    <button class="ctx-reaction-btn" data-emoji="❤️">❤️</button>
+    <button class="ctx-reaction-btn" data-emoji="👍">👍</button>
+    <button class="ctx-reaction-btn" data-emoji="👎">👎</button>
+    <button class="ctx-reaction-btn" data-emoji="🔥">🔥</button>
+    <button class="ctx-reaction-btn" data-emoji="😍">😍</button>
+    <button class="ctx-reaction-btn" data-emoji="👏">👏</button>
+    <button class="ctx-reaction-btn" data-emoji="😂">😂</button>
+  </div>
+  <div class="ctx-menu-divider" style="margin-top:2px"></div>
+
   <button class="ctx-menu-item" data-action="reply">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <polyline points="9 17 4 12 9 7"/>
@@ -243,6 +255,7 @@
     </svg>
     Ответить
   </button>
+
   <button class="ctx-menu-item" id="ctx-edit-btn" data-action="edit">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -250,6 +263,7 @@
     </svg>
     Изменить
   </button>
+
   <button class="ctx-menu-item" data-action="copy">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -257,6 +271,7 @@
     </svg>
     Копировать текст
   </button>
+
   <button class="ctx-menu-item" data-action="pin">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <line x1="12" y1="17" x2="12" y2="22"/>
@@ -264,6 +279,7 @@
     </svg>
     Закрепить
   </button>
+
   <button class="ctx-menu-item" data-action="forward">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <polyline points="15 17 20 12 15 7"/>
@@ -271,6 +287,7 @@
     </svg>
     Переслать
   </button>
+
   <button class="ctx-menu-item" data-action="select">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="10"/>
@@ -278,6 +295,7 @@
     </svg>
     Выбрать
   </button>
+  
   <div class="ctx-menu-divider"></div>
   <button class="ctx-menu-item danger" data-action="delete">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

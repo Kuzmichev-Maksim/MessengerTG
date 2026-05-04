@@ -1,6 +1,8 @@
 import json
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from .models import Message, Room, Reaction
+from collections import defaultdict
 
 from .models import Message, Room
 
@@ -95,6 +97,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     },
                 )
             return
+        
+        # === REACTION ===
+        if payload.get('type') == 'react':
+            message_id = payload.get('message_id')
+            emoji = (payload.get('emoji') or '').strip()
+            if not message_id or not emoji:
+                return
+            result = await self.toggle_reaction(message_id, emoji)
+            if result is not None:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {'type': 'chat.reaction', **result},
+                )
+            return
     
         # === TYPING INDICATOR ===
         if payload.get('type') == 'typing':
@@ -130,6 +146,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'typing',
             'username': event['username'],
+        }))
+        
+    async def chat_reaction(self, event):
+        await self.send(text_data=json.dumps({
+            'type':       'reaction',
+            'message_id': event['message_id'],
+            'reactions':  event['reactions'],
         }))
 
     async def chat_edit(self, event):
@@ -219,6 +242,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             Message.objects
             .filter(room_id=self.room_id)
             .select_related('author', 'reply_to', 'reply_to__author')
+            .prefetch_related('reactions', 'reactions__user')  # ← добавить
             .order_by('-created_at')[:50]
         )
         latest.reverse()
@@ -232,6 +256,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'created_at': obj.created_at.isoformat(),
             'is_read':    obj.is_read,
             'edited_at':  obj.edited_at.isoformat() if obj.edited_at else None,
+            'reactions':  self._serialize_reactions(obj),
         }
         if obj.reply_to:
             data['reply_to'] = {
@@ -240,7 +265,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'message':  obj.reply_to.text,
             }
         return data
-
+    
+    def _serialize_reactions(self, obj):
+        grouped = defaultdict(list)
+        for r in obj.reactions.all():
+            grouped[r.emoji].append(r.user.username)
+        return [
+            {'emoji': emoji, 'count': len(users), 'users': users}
+            for emoji, users in grouped.items()
+        ]
+    
     @sync_to_async
     def get_room_for_user(self, room_slug, user_id):
         try:
@@ -274,3 +308,36 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         except Message.DoesNotExist:
             return None
+    
+    @sync_to_async
+    def toggle_reaction(self, message_id, emoji):
+        try:
+            msg = Message.objects.prefetch_related(
+                'reactions', 'reactions__user'
+            ).get(id=message_id, room_id=self.room_id)
+        except Message.DoesNotExist:
+            return None
+
+        reaction, created = Reaction.objects.get_or_create(
+            message=msg, user_id=self.user_id, emoji=emoji
+        )
+        if not created:
+            reaction.delete()
+
+        # Перечитываем актуальные реакции
+        msg.refresh_from_db()
+        reactions_qs = Reaction.objects.filter(
+            message=msg
+        ).select_related('user')
+
+        grouped = defaultdict(list)
+        for r in reactions_qs:
+            grouped[r.emoji].append(r.user.username)
+
+        return {
+            'message_id': message_id,
+            'reactions': [
+                {'emoji': e, 'count': len(u), 'users': u}
+                for e, u in grouped.items()
+            ],
+        }

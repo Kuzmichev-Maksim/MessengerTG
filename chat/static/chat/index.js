@@ -106,6 +106,30 @@ function buildReplyQuoteHTML(replyData) {
     </div>`;
 }
 
+/* ─── Reactions ─── */
+function renderReactions(row, reactions) {
+  const container = row.querySelector('.msg-reactions');
+  if (!container) return;
+  container.innerHTML = '';
+  reactions.forEach(r => {
+    const mine = r.users.includes(currentUser);
+    const pill = document.createElement('button');
+    pill.className = 'reaction-pill' + (mine ? ' mine' : '');
+    pill.dataset.emoji = r.emoji;
+    pill.innerHTML = `${r.emoji}<span class="pill-count">${r.count}</span>`;
+    pill.addEventListener('click', () => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'react',
+          message_id: parseInt(row.dataset.msgId, 10),
+          emoji: r.emoji,
+        }));
+      }
+    });
+    container.appendChild(pill);
+  });
+}
+
 /* ─── Render message ─── */
 function appendMessage(data) {
   const isMine = data.username === currentUser;
@@ -118,18 +142,24 @@ function appendMessage(data) {
   row.dataset.msgText     = data.message;
 
   row.innerHTML = `
-  <div class="bubble-wrap">
-    <div class="bubble">
-      ${!isMine ? `<span class="bubble-sender">${esc(data.username)}</span>` : ""}
-      ${buildReplyQuoteHTML(data.reply_to)}
-      <span class="bubble-text">${esc(data.message)}</span>
-      <div class="bubble-meta">
-        <span class="bubble-edited" style="${data.edited_at ? '' : 'display:none'}">изменено</span>
-        <span class="bubble-time">${esc(fmtTime(data.created_at))}</span>
-        ${isMine ? tickHTML(data.is_read) : ""}
+    <div class="bubble-wrap">
+      <div class="bubble">
+        ${!isMine ? `<span class="bubble-sender">${esc(data.username)}</span>` : ""}
+        ${buildReplyQuoteHTML(data.reply_to)}
+        <span class="bubble-text">${esc(data.message)}</span>
+        <div class="bubble-meta">
+          <span class="bubble-edited" style="${data.edited_at ? '' : 'display:none'}">изменено</span>
+          <span class="bubble-time">${esc(fmtTime(data.created_at))}</span>
+          ${isMine ? tickHTML(data.is_read) : ""}
+        </div>
       </div>
-    </div>
-  </div>`;
+      <div class="msg-reactions"></div>
+    </div>`;
+
+  // Рендерим начальные реакции
+  if (data.reactions && data.reactions.length > 0) {
+    renderReactions(row, data.reactions);
+  }
 
   const quote = row.querySelector('.reply-quote');
   if (quote) {
@@ -359,6 +389,21 @@ ctxMenu.addEventListener('click', e => {
       showToast('Скопировано в буфер обмена');
     });
   }
+  
+  // Клик по смайлику реакции
+  const reactionBtn = e.target.closest('.ctx-reaction-btn');
+  if (reactionBtn && ctxTarget) {
+    const emoji = reactionBtn.dataset.emoji;
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'react',
+        message_id: parseInt(ctxTarget.dataset.msgId, 10),
+        emoji,
+      }));
+    }
+    hideCtxMenu();
+    return;
+  }
 
   hideCtxMenu();
 });
@@ -421,6 +466,12 @@ socket.onmessage = (event) => {
       const editedEl = row.querySelector('.bubble-edited');
       if (editedEl) editedEl.style.display = '';
     }
+    return;
+  }
+
+  if (payload.type === "reaction") {
+    const row = innerEl.querySelector(`[data-msg-id="${payload.message_id}"]`);
+    if (row) renderReactions(row, payload.reactions);
     return;
   }
 
