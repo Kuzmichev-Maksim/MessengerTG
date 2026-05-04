@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-4nz8k!i)=w_$vl+7e3o@6cu#$t)54mfx_m0v)o52#-!v012-+*'
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['messengertg.onrender.com', 'localhost', '127.0.0.1']
 
