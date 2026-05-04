@@ -8,7 +8,13 @@ const messageInput = document.getElementById("message");
 const sendBtn      = document.getElementById("send");
 
 /* ─── Reply state ─── */
-let replyTo = null; // { id, username, message }
+let replyTo = null;
+
+/* ─── Typing indicator ─── */
+let typingInterval = null;
+let lastTypingSent = 0;
+const TYPING_INTERVAL_MS = 400;
+const TYPING_TIMEOUT_MS = 3000; // сколько держать индикатор после последнего нажатия
 
 /* ─── Escape HTML ─── */
 function esc(text) {
@@ -19,7 +25,6 @@ function esc(text) {
 /* ─── Toast notification ─── */
 let _toastTimer = null;
 function showToast(text) {
-  // Remove existing toast instantly
   const old = document.getElementById('tg-toast');
   if (old) old.remove();
   if (_toastTimer) clearTimeout(_toastTimer);
@@ -41,7 +46,7 @@ function showToast(text) {
   }, 2200);
 }
 
-
+/* ─── Time formatting ─── */
 function fmtTime(iso) {
   try {
     return new Date(iso).toLocaleTimeString("ru-RU", { hour:"2-digit", minute:"2-digit" });
@@ -52,22 +57,20 @@ function fmtDay(iso) {
   try {
     const d   = new Date(iso);
     const now = new Date();
-    const today     = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const msgDay    = new Date(d.getFullYear(),   d.getMonth(),   d.getDate());
-    const diffDays  = Math.round((today - msgDay) / 86_400_000);
+    const today  = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.round((today - msgDay) / 86_400_000);
     if (diffDays === 0) return "Сегодня";
     if (diffDays === 1) return "Вчера";
     return d.toLocaleDateString("ru-RU", { day:"numeric", month:"long" });
   } catch { return ""; }
 }
 
-/* ─── Tick SVGs ─── */
-// Single gray tick — sent, not yet read
+/* ─── Ticks ─── */
 const TICK_SENT = `<svg viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M1 5l3.2 3.2L11 1.5" stroke="#a0acb5" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
-// Double blue ticks — read
 const TICK_READ = `<svg viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M1 5l3.2 3.2L11 1.5"  stroke="#3390ec" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M5 5l3.2 3.2L15 1.5" stroke="#3390ec" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
@@ -77,7 +80,7 @@ function tickHTML(isRead) {
   return `<span class="bubble-tick ${isRead ? 'tick-read' : 'tick-sent'}">${isRead ? TICK_READ : TICK_SENT}</span>`;
 }
 
-/* ─── Day separator ─── */
+/* ─── Day badge ─── */
 let lastDayLabel = "";
 
 function ensureDayBadge(iso) {
@@ -90,7 +93,7 @@ function ensureDayBadge(iso) {
   innerEl.appendChild(el);
 }
 
-/* ─── Render reply quote inside bubble ─── */
+/* ─── Reply quote ─── */
 function buildReplyQuoteHTML(replyData) {
   if (!replyData) return '';
   const truncated = replyData.message.length > 80
@@ -103,7 +106,7 @@ function buildReplyQuoteHTML(replyData) {
     </div>`;
 }
 
-/* ─── Render one message ─── */
+/* ─── Render message ─── */
 function appendMessage(data) {
   const isMine = data.username === currentUser;
   ensureDayBadge(data.created_at);
@@ -127,7 +130,6 @@ function appendMessage(data) {
       </div>
     </div>`;
 
-  // Click on reply quote → scroll to original
   const quote = row.querySelector('.reply-quote');
   if (quote) {
     quote.addEventListener('click', () => {
@@ -135,12 +137,10 @@ function appendMessage(data) {
       const target = innerEl.querySelector(`[data-msg-id="${targetId}"]`);
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Flash highlight
-        target.querySelector('.bubble').style.transition = 'background .2s';
-        target.querySelector('.bubble').style.filter = 'brightness(0.88)';
-        setTimeout(() => {
-          target.querySelector('.bubble').style.filter = '';
-        }, 700);
+        const bubble = target.querySelector('.bubble');
+        bubble.style.transition = 'background .2s';
+        bubble.style.filter = 'brightness(0.88)';
+        setTimeout(() => bubble.style.filter = '', 700);
       }
     });
   }
@@ -157,9 +157,64 @@ function updateRoomPreview(message, created_at) {
   if (time) time.textContent = fmtTime(created_at);
 }
 
-/* ─── Online status ─── */
-function setStatus(online) {
+/* ─── Status & Typing ─── */
+let currentTypingUser = null;
+let typingResetTimer = null;
+
+function startTypingAnimation(username) {
   if (!headerStatus) return;
+
+  currentTypingUser = username;
+
+  let dots = 0;
+  const baseText = `печатает`;
+
+  if (typingInterval) clearInterval(typingInterval);
+
+  typingInterval = setInterval(() => {
+    dots = (dots + 1) % 4;
+    headerStatus.textContent = baseText + '.'.repeat(dots);
+    headerStatus.classList.add("typing");
+  }, TYPING_INTERVAL_MS);
+
+  // Сброс через 3 секунды, если новых typing-сообщений не придёт
+  resetTypingTimeout();
+}
+
+function resetTypingTimeout() {
+  if (typingResetTimer) clearTimeout(typingResetTimer);
+  
+  typingResetTimer = setTimeout(() => {
+    stopTypingAnimation();
+  }, TYPING_TIMEOUT_MS);
+}
+
+function stopTypingAnimation() {
+  if (typingInterval) {
+    clearInterval(typingInterval);
+    typingInterval = null;
+  }
+  if (typingResetTimer) {
+    clearTimeout(typingResetTimer);
+    typingResetTimer = null;
+  }
+
+  currentTypingUser = null;
+  headerStatus.classList.remove("typing");
+  
+  // Возвращаем предыдущий статус
+  restoreLastStatus();
+}
+
+let lastKnownOnlineStatus = false; // запоминаем последний реальный статус
+
+function setStatus(online) {
+  lastKnownOnlineStatus = online;
+
+  if (currentTypingUser) return; // не затираем индикатор печати
+
+  if (!headerStatus) return;
+
   if (online) {
     headerStatus.textContent = "в сети";
     headerStatus.classList.add("online");
@@ -167,6 +222,11 @@ function setStatus(online) {
     headerStatus.textContent = "не в сети";
     headerStatus.classList.remove("online");
   }
+}
+
+/* Восстановление статуса после остановки печати */
+function restoreLastStatus() {
+  setStatus(lastKnownOnlineStatus);
 }
 
 /* ══════════════════════════════════════════
@@ -180,9 +240,7 @@ const replyBarCancel = document.getElementById("reply-bar-cancel");
 function showReplyBar(data) {
   replyTo = data;
   replyBarAuthor.textContent = data.username;
-  replyBarText.textContent   = data.message.length > 80
-    ? data.message.slice(0, 80) + '…'
-    : data.message;
+  replyBarText.textContent   = data.message.length > 80 ? data.message.slice(0, 80) + '…' : data.message;
   replyBar.style.display = 'flex';
   messageInput.focus();
 }
@@ -197,32 +255,30 @@ function hideReplyBar() {
 replyBarCancel.addEventListener('click', hideReplyBar);
 
 /* ══════════════════════════════════════════
-   CONTEXT MENU
+   CONTEXT MENU (без изменений)
 ══════════════════════════════════════════ */
 const ctxMenu = document.getElementById("ctx-menu");
-let ctxTarget = null; // the .msg-row element
+let ctxTarget = null;
 
 function showCtxMenu(x, y, msgRow) {
   ctxTarget = msgRow;
-
-  // Adjust so menu stays on screen
   ctxMenu.style.visibility = 'hidden';
   ctxMenu.style.display = 'block';
+
   const mw = ctxMenu.offsetWidth;
   const mh = ctxMenu.offsetHeight;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  let left = x;
-  let top  = y;
-  if (left + mw > vw - 8)  left = vw - mw - 8;
-  if (left < 8)             left = 8;
-  if (top  + mh > vh - 8)  top  = y - mh;
-  if (top  < 8)             top  = 8;
+  let left = x, top = y;
+  if (left + mw > vw - 8) left = vw - mw - 8;
+  if (left < 8) left = 8;
+  if (top + mh > vh - 8) top = y - mh;
+  if (top < 8) top = 8;
 
-  ctxMenu.style.left        = left + 'px';
-  ctxMenu.style.top         = top  + 'px';
-  ctxMenu.style.visibility  = 'visible';
+  ctxMenu.style.left = left + 'px';
+  ctxMenu.style.top  = top + 'px';
+  ctxMenu.style.visibility = 'visible';
   ctxMenu.focus();
 }
 
@@ -231,7 +287,6 @@ function hideCtxMenu() {
   ctxTarget = null;
 }
 
-// Right-click on messages area
 innerEl.addEventListener('contextmenu', e => {
   const bubble = e.target.closest('.bubble');
   if (!bubble) return;
@@ -240,7 +295,6 @@ innerEl.addEventListener('contextmenu', e => {
   showCtxMenu(e.clientX, e.clientY, row);
 });
 
-// Context menu actions
 ctxMenu.addEventListener('click', e => {
   const btn = e.target.closest('.ctx-menu-item');
   if (!btn) return;
@@ -256,30 +310,22 @@ ctxMenu.addEventListener('click', e => {
 
   if (action === 'copy' && ctxTarget) {
     const text = ctxTarget.dataset.msgText;
-    navigator.clipboard.writeText(text)
-      .then(() => showToast('Скопировано в буфер обмена'))
-      .catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        showToast('Скопировано в буфер обмена');
-      });
+    navigator.clipboard.writeText(text).then(() => showToast('Скопировано')).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Скопировано');
+    });
   }
 
-  // Other actions are stubs
   hideCtxMenu();
 });
 
-// Close menu when clicking outside
-document.addEventListener('mousedown', e => {
-  if (!ctxMenu.contains(e.target)) hideCtxMenu();
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') hideCtxMenu();
-});
+document.addEventListener('mousedown', e => { if (!ctxMenu.contains(e.target)) hideCtxMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
 
 /* ══════════════════════════════════════════
    WEBSOCKET
@@ -288,24 +334,20 @@ const proto  = location.protocol === "https:" ? "wss" : "ws";
 const socket = new WebSocket(`${proto}://${location.host}/ws/chat/${currentRoom}/`);
 
 socket.onopen = () => {
-  if (headerStatus) {
-    headerStatus.textContent = "подключено";
-    headerStatus.classList.remove("online");
-  }
+  headerStatus.textContent = "подключено";
+  headerStatus.classList.remove("online");
 };
 
 socket.onclose = () => {
-  if (headerStatus) {
-    headerStatus.textContent = "отключено";
-    headerStatus.classList.remove("online");
-  }
+  stopTypingAnimation();
+  headerStatus.textContent = "отключено";
+  headerStatus.classList.remove("online");
 };
 
 socket.onerror = () => {
-  if (headerStatus) {
-    headerStatus.textContent = "ошибка";
-    headerStatus.classList.remove("online");
-  }
+  stopTypingAnimation();
+  headerStatus.textContent = "ошибка";
+  headerStatus.classList.remove("online");
 };
 
 socket.onmessage = (event) => {
@@ -322,6 +364,12 @@ socket.onmessage = (event) => {
   if (payload.type === "message") {
     appendMessage(payload);
     updateRoomPreview(payload.message, payload.created_at);
+
+    // Если сообщение пришло от человека, который печатал — убираем индикатор
+    if (currentTypingUser === payload.username) {
+      stopTypingAnimation();
+      restoreLastStatus();
+    }
     return;
   }
 
@@ -330,11 +378,17 @@ socket.onmessage = (event) => {
     return;
   }
 
+  if (payload.type === "typing") {
+    if (payload.username !== currentUser) {
+      startTypingAnimation(payload.username);
+    }
+    return;
+  }
+
   if (payload.type === "read_receipt") {
     const lastId = payload.last_read_id;
     document.querySelectorAll('.msg-row.out').forEach(row => {
-      const msgId = parseInt(row.dataset.msgId, 10);
-      if (msgId <= lastId) {
+      if (parseInt(row.dataset.msgId, 10) <= lastId) {
         const tickEl = row.querySelector('.bubble-tick');
         if (tickEl && !tickEl.classList.contains('tick-read')) {
           tickEl.classList.remove('tick-sent');
@@ -343,11 +397,21 @@ socket.onmessage = (event) => {
         }
       }
     });
-    return;
   }
 };
 
-/* ─── Send ─── */
+/* ─── Typing sender ─── */
+function sendTypingSignal() {
+  const now = Date.now();
+  if (now - lastTypingSent < 800) return; // не чаще чем раз в 800мс
+
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "typing" }));
+    lastTypingSent = now;
+  }
+}
+
+/* ─── Send message ─── */
 function sendMessage() {
   const text = messageInput.value.trim();
   if (!text || socket.readyState !== WebSocket.OPEN) return;
@@ -364,16 +428,24 @@ function sendMessage() {
   hideReplyBar();
 }
 
+/* ─── Event listeners ─── */
 sendBtn.addEventListener("click", sendMessage);
 messageInput.addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
   if (e.key === "Escape") hideReplyBar();
 });
 
-/* ─── Auto-grow input ─── */
+/* Авто-рост поля ввода + отправка typing */
 messageInput.addEventListener("input", () => {
   messageInput.style.height = "auto";
   messageInput.style.height = Math.min(messageInput.scrollHeight, 160) + "px";
+
+  if (messageInput.value.trim().length > 0) {
+    sendTypingSignal();
+  }
 });
 
 /* ─── Sidebar search ─── */
@@ -382,7 +454,7 @@ if (searchInput) {
   searchInput.addEventListener("input", () => {
     const q = searchInput.value.trim().toLowerCase();
     document.querySelectorAll(".room-item").forEach(el => {
-      el.style.display = (!q || (el.dataset.title || "").includes(q)) ? "" : "none";
+      el.style.display = (!q || (el.dataset.title || "").toLowerCase().includes(q)) ? "" : "none";
     });
   });
 }
