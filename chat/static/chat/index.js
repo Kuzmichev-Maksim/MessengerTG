@@ -106,7 +106,34 @@ function buildReplyQuoteHTML(replyData) {
     </div>`;
 }
 
-/* ─── Reactions ─── */
+/* ─── Цвет аватарки по имени ─── */
+const AVATAR_COLORS = [
+  'linear-gradient(135deg,#f5a623,#f76b1c)',
+  'linear-gradient(135deg,#43b89c,#3d8eb9)',
+  'linear-gradient(135deg,#e8637f,#c0392b)',
+  'linear-gradient(135deg,#7b61ff,#3390ec)',
+  'linear-gradient(135deg,#20bf55,#01baef)',
+  'linear-gradient(135deg,#fc5c7d,#6a82fb)',
+  'linear-gradient(135deg,#f7971e,#ffd200)',
+];
+
+function avatarColor(username) {
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function buildAvatarsHTML(users, max = 3) {
+  const shown = users.slice(0, max);
+  const extra = users.length - shown.length;
+  const avatars = shown.map(u => `
+    <div class="reaction-avatar" style="background:${avatarColor(u)}" title="${esc(u)}">
+      ${esc(u.slice(0, 1))}
+    </div>`).join('');
+  const more = extra > 0 ? `<span class="reaction-more">+${extra}</span>` : '';
+  return `<div class="reaction-avatars">${avatars}</div>${more}`;
+}
+
 function renderReactions(row, reactions) {
   const container = row.querySelector('.msg-reactions');
   if (!container) return;
@@ -116,13 +143,18 @@ function renderReactions(row, reactions) {
     const pill = document.createElement('button');
     pill.className = 'reaction-pill' + (mine ? ' mine' : '');
     pill.dataset.emoji = r.emoji;
-    pill.innerHTML = `${r.emoji}<span class="pill-count">${r.count}</span>`;
+    pill.innerHTML = `
+      <span class="reaction-emoji">${r.emoji}</span>
+      ${buildAvatarsHTML(r.users)}`;
+
+    pill.title = r.users.join(', ');
+
     pill.addEventListener('click', () => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({
-          type: 'react',
+          type:       'react',
           message_id: parseInt(row.dataset.msgId, 10),
-          emoji: r.emoji,
+          emoji:      r.emoji,
         }));
       }
     });
@@ -361,6 +393,22 @@ innerEl.addEventListener('contextmenu', e => {
 });
 
 ctxMenu.addEventListener('click', e => {
+  // Реакция — проверяем первой
+  const reactionBtn = e.target.closest('.ctx-reaction-btn');
+  if (reactionBtn && ctxTarget) {
+    const emoji = reactionBtn.dataset.emoji;
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type:       'react',
+        message_id: parseInt(ctxTarget.dataset.msgId, 10),
+        emoji,
+      }));
+    }
+    hideCtxMenu();
+    return;
+  }
+
+  // Обычные пункты меню
   const btn = e.target.closest('.ctx-menu-item');
   if (!btn) return;
   const action = btn.dataset.action;
@@ -388,21 +436,6 @@ ctxMenu.addEventListener('click', e => {
       document.body.removeChild(ta);
       showToast('Скопировано в буфер обмена');
     });
-  }
-  
-  // Клик по смайлику реакции
-  const reactionBtn = e.target.closest('.ctx-reaction-btn');
-  if (reactionBtn && ctxTarget) {
-    const emoji = reactionBtn.dataset.emoji;
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        type: 'react',
-        message_id: parseInt(ctxTarget.dataset.msgId, 10),
-        emoji,
-      }));
-    }
-    hideCtxMenu();
-    return;
   }
 
   hideCtxMenu();

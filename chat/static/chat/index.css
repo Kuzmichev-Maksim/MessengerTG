@@ -916,39 +916,54 @@ body {
 .reaction-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  background: rgba(255,255,255,.85);
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.9);
   border: 1.5px solid var(--border);
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
   transition: background .15s, border-color .15s, transform .1s;
   backdrop-filter: blur(4px);
   user-select: none;
   box-shadow: var(--shadow-sm);
+  line-height: 1;
 }
-.reaction-pill:hover { background: #fff; transform: scale(1.07); }
+.reaction-pill:hover  { background: #fff; transform: scale(1.07); }
 .reaction-pill:active { transform: scale(.97); }
-.reaction-pill.mine {
-  background: #dbeeff;
-  border-color: var(--blue);
-}
-.reaction-pill .pill-count {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-2);
-  min-width: 8px;
-}
-.reaction-pill.mine .pill-count { color: var(--blue); }
+.reaction-pill.mine   { background: #dbeeff; border-color: var(--blue); }
 
-/* ══════════════════════════════════════════
-   RESPONSIVE
-══════════════════════════════════════════ */
-@media (max-width: 700px) {
-  .sidebar { width: 100%; position: absolute; z-index: 20; }
-  .back-btn { display: flex; }
-  .chat-panel { position: absolute; inset: 0; }
-  .sidebar { transform: translateX(-100%); transition: transform .25s; }
-  .sidebar.open { transform: none; }
+.reaction-emoji { font-size: 15px; line-height: 1; }
+
+/* Стопка аватарок */
+.reaction-avatars {
+  display: flex;
+  align-items: center;
 }
+.reaction-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  margin-left: -5px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.reaction-avatars .reaction-avatar:first-child { margin-left: 0; }
+
+/* +N бейдж если много реагировавших */
+.reaction-more {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-left: 2px;
+  min-width: 12px;
+}
+.reaction-pill.mine .reaction-more { color: var(--blue); }
