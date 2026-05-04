@@ -2,3 +2,4 @@ Django>=6.0,<7.0
 channels>=4.3,<5.0
 daphne>=4.2,<5.0
 gunicorn==22.0.0
+whitenoise==6.12.0
