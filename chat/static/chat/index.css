@@ -967,3 +967,159 @@ body {
   min-width: 12px;
 }
 .reaction-pill.mine .reaction-more { color: var(--blue); }
+
+/* ══════════════════════════════════════════
+   MOBILE RESPONSIVE (iPhone 13 и другие)
+══════════════════════════════════════════ */
+
+/* Используем dvh там где поддерживается (убирает баг с адресной строкой Safari) */
+@supports (height: 100dvh) {
+  html, body { height: 100dvh; }
+  .layout    { height: 100dvh; }
+  .sidebar   { height: 100dvh; }
+  .chat-panel { height: 100dvh; }
+}
+
+@media (max-width: 700px) {
+
+  /* ── Layout ── */
+  .layout {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar: скрыта по умолчанию, выезжает поверх ── */
+  .sidebar {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    min-width: unset;
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    z-index: 200;
+    /* Безопасная зона iOS (чёлка/домашняя полоска) */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,.18);
+  }
+
+  /* ── Chat panel: занимает весь экран ── */
+  .chat-panel {
+    width: 100%;
+    flex: unset;
+    height: 100%;
+    /* Когда открыта клавиатура — не уезжаем за экран */
+    min-height: 0;
+  }
+
+  /* ── Кнопка «Назад» в хедере чата ── */
+  .back-btn {
+    display: flex;
+  }
+
+  /* ── Хедер чата: компактнее ── */
+  .chat-header {
+    padding: 0 6px 0 4px;
+    gap: 6px;
+  }
+
+  /* Прячем лишние кнопки в хедере на мобильном */
+  .chat-header-actions .header-icon-btn:not(:last-of-type) {
+    display: none;
+  }
+
+  /* Выход прямо в хедере — оставляем, но чуть меньше */
+  .logout-form { margin-left: 0; }
+  .logout-btn  { font-size: 12px; padding: 5px 10px; }
+
+  /* ── Сообщения ── */
+  .bubble-wrap {
+    max-width: min(300px, 82vw);
+  }
+
+  /* ── Compose bar: учитываем безопасную зону (домашняя полоска iPhone) ── */
+  .compose-bar {
+    padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .reply-bar {
+    padding-left: 10px;
+  }
+
+  .edit-bar {
+    padding-left: 10px;
+  }
+
+  /* ── Контекстное меню: шире и удобнее для пальцев ── */
+  .ctx-menu {
+    min-width: 220px;
+  }
+
+  .ctx-menu-item {
+    padding: 13px 18px;
+    font-size: 15px;
+  }
+
+  .ctx-reaction-btn {
+    width: 42px;
+    height: 42px;
+    font-size: 24px;
+  }
+
+  /* ── Sidebar header — safe area сверху (чёлка) ── */
+  .sidebar-header {
+    padding-top: env(safe-area-inset-top);
+    height: calc(56px + env(safe-area-inset-top));
+  }
+
+  /* ── Room items — чуть выше для удобства тапа ── */
+  .room-item {
+    height: 76px;
+  }
+
+  /* ── Auth карточка ── */
+  .auth-card {
+    width: calc(100vw - 32px);
+    padding: 32px 24px 28px;
+    border-radius: 14px;
+  }
+
+  /* ── Пустое состояние ── */
+  .empty-logout {
+    position: static;
+    margin-top: 32px;
+  }
+
+  /* ── Toast чуть выше из-за домашней полоски ── */
+  .toast {
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    max-width: calc(100vw - 32px);
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* ── Day badge ── */
+  .day-badge {
+    font-size: 12px;
+    padding: 4px 13px;
+  }
+}
+
+/* Очень маленькие экраны (SE, старые Android) */
+@media (max-width: 380px) {
+  .bubble-wrap {
+    max-width: 86vw;
+  }
+
+  .chat-header-name {
+    font-size: 14px;
+  }
+
+  .logout-btn {
+    display: none; /* совсем мало места — убираем из хедера */
+  }
+}
